@@ -5,8 +5,6 @@ from dotenv import load_dotenv
 from datetime import datetime
 import os
 
-# Load environment variables
-
 
 # Connection settings
 HOST = 'localhost'
@@ -79,6 +77,7 @@ def read_committed():
     """
     Shows how READ COMMITTED isolation level works.
     Prevents dirty reads.
+    Non
     :return: void
     """
     connection1 = create_connection()
@@ -142,7 +141,7 @@ def repeatable_read():
         # Transaction 2: Update Alice's balance
         print(f"Transaction 2 started: {datetime.now()}")
         connection2.start_transaction(isolation_level='READ COMMITTED')
-        cursor2.execute("UPDATE accounts SET balance = 9999 WHERE name = 'Alice'")
+        cursor2.execute("UPDATE accounts SET balance = 4444 WHERE name = 'Alice'")
         connection2.commit()
         print("Transaction 2 committed.")
 
@@ -151,6 +150,54 @@ def repeatable_read():
         balance_repeatable_read = cursor1.fetchone()[0]
 
         print(f"Repeatable Read: Alice's balance before and after update = {balance_repeatable_read}")
+
+        print(f"Transaction 1 commit(): {datetime.now()}")
+        connection1.commit()
+
+    except Error as e:
+        print(f"Error: {e}")
+    finally:
+        if cursor1:
+            cursor1.close()
+        if connection1 and connection1.is_connected():
+            connection1.close()
+        if cursor2:
+            cursor2.close()
+        if connection2 and connection2.is_connected():
+            connection2.close()
+
+
+def non_repeatable_read():
+    """
+    Shows how Non-Repeatable Read works.
+    :return: void
+    """
+    connection1 = create_connection()
+    connection2 = create_connection()
+
+    try:
+        cursor1 = connection1.cursor()
+        cursor2 = connection2.cursor()
+
+        # Transaction 1: Read Committed
+        print(f"Transaction 1 started: {datetime.now()}")
+        connection1.start_transaction(isolation_level='READ COMMITTED')
+        cursor1.execute("SELECT balance FROM accounts WHERE name = 'Alice'")
+        balance_before_update = cursor1.fetchone()[0]
+        print(f"Initial balance read in Transaction 1: {balance_before_update}")
+
+        # Transaction 2: Update Alice's balance
+        print(f"Transaction 2 started: {datetime.now()}")
+        connection2.start_transaction(isolation_level='READ COMMITTED')
+        cursor2.execute("UPDATE accounts SET balance = 5000 WHERE name = 'Alice'")
+        connection2.commit()
+        print("Transaction 2 committed.")
+
+        # Transaction 1 reads Alice's balance again
+        cursor1.execute("SELECT balance FROM accounts WHERE name = 'Alice'")
+        balance_after_update = cursor1.fetchone()[0]
+
+        print(f"Non-Repeatable Read: Alice's balance before and after update = {balance_before_update} -> {balance_after_update}")
 
         print(f"Transaction 1 commit(): {datetime.now()}")
         connection1.commit()
@@ -224,6 +271,9 @@ if __name__ == "__main__":
 
     print("\nREPEATABLE READ")
     repeatable_read()
+
+    print("\nNON REPEATABLE READ")
+    non_repeatable_read()
 
     print("\nDEADLOCK")
     deadlock()
