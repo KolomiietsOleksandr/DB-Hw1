@@ -168,6 +168,53 @@ def repeatable_read():
             connection2.close()
 
 
+def deadlock():
+    """
+    Demonstrates deadlock.
+    Transaction 1 and 2 will try to update each other's rows and deadlock.
+    :return: void
+    """
+    connection1 = create_connection()
+    connection2 = create_connection()
+
+    try:
+        cursor1 = connection1.cursor()
+        cursor2 = connection2.cursor()
+
+        # Transaction 1 locks row 1
+        print(f"Transaction 1 started: {datetime.now()}")
+        connection1.start_transaction()
+        cursor1.execute("UPDATE accounts SET balance = 1111 WHERE name = 'Alice'")
+
+        # Transaction 2 locks row 2
+        print(f"Transaction 2 started: {datetime.now()}")
+        connection2.start_transaction()
+        cursor2.execute("UPDATE accounts SET balance = 2222 WHERE name = 'Bob'")
+
+        # Now, both transactions try to lock the other's row
+        print("Transaction 1 attempts to update Bob's balance.")
+        cursor1.execute("UPDATE accounts SET balance = 6666 WHERE name = 'Bob'")
+
+        print("Transaction 2 attempts to update Alice's balance.")
+        cursor2.execute("UPDATE accounts SET balance = 5555 WHERE name = 'Alice'")
+
+        connection1.commit()
+        connection2.commit()
+
+    except Error as e:
+        print(f"Error: {e}")
+        print("Deadlock detected!")
+    finally:
+        if cursor1:
+            cursor1.close()
+        if connection1 and connection1.is_connected():
+            connection1.close()
+        if cursor2:
+            cursor2.close()
+        if connection2 and connection2.is_connected():
+            connection2.close()
+
+
 if __name__ == "__main__":
     print("READ_UNCOMMITTED")
     read_uncommited_demo()
@@ -177,3 +224,6 @@ if __name__ == "__main__":
 
     print("\nREPEATABLE READ")
     repeatable_read()
+
+    print("\nDEADLOCK")
+    deadlock()
